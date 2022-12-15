@@ -1,55 +1,42 @@
 #!python
 import openai_api
-import asyncio  # 导入asyncio库
+import asyncio
 
 
-# 定义一个异步处理网络请求的函数
-async def nc_handler(reader, writer):
-    content = ''
-    while True:
-        # 打印提示符
-        writer.write(b'\n> ')
-        await writer.drain()
-        # 从网络连接中读取数据
-        data = await reader.read(1024)
-        # 获取远程连接的地址信息
-        addr = writer.get_extra_info('peername')
-        print(f"Received from {addr}")
-        # 解码数据
-        if data:
-            txt = data.decode().strip()
-        else:
-            txt = ''
-        if txt:
-            if txt == 'exit':
-                break
-            content += txt + '\n'
-            response = openai_api.my_diy(content) + '\n'
+class NCServer(asyncio.Protocol):
+    def connection_made(self, transport):
+        self.transport = transport
+        self.peername = transport.get_extra_info('peername')
+        print('Connection from {}'.format(self.peername))
+        self.transport.write(b'\n> ')
+
+    def data_received(self, data):
+        message = data.decode().strip()
+        # print('Data received: {!r}'.format(message))
+        if message:
+            if message == 'exit':
+                self.transport.close()
+                return
+            response = openai_api.my_diy(message) + '\n'
         else:
             response = 'None\n'
-        # 向客户端发送响应的数据
-        writer.write(response.encode())
-    # 关闭连接
-    writer.close()
+        self.transport.write(response.encode())
+        self.transport.write(b'\n> ')
+
+    def connection_lost(self, exc):
+        print('Connection from {} closed'.format(self.peername))
 
 
-# 获取一个事件循环对象loop
-loop = asyncio.get_event_loop()
-# 绑定nc服务器的地址和端口
-coro = asyncio.start_server(nc_handler, '0.0.0.0', 8888, loop=loop)
-# 启动一个服务
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+coro = loop.create_server(NCServer, '127.0.0.1', 8888)
 server = loop.run_until_complete(coro)
 
-# 打印出服务器相关信息
-print('Serving on {}'.format(server.sockets[0].getsockname()))
-# 使用无限循环来保持程序不退出
 try:
     loop.run_forever()
 except KeyboardInterrupt:
     pass
 
-# 关闭服务
 server.close()
-# 关闭事件循环
 loop.run_until_complete(server.wait_closed())
 loop.close()

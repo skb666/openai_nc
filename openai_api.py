@@ -84,15 +84,14 @@ def my_diy(content):
         engine="text-davinci-003",
         prompt=f"{content}",
         temperature=0.8,
-        max_tokens=2048,
+        max_tokens=4000,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
-        stream=True
+        best_of=1
     )
     # Return the generated text
-    txt = ''.join([res["choices"][0]["text"] for res in response])
-    return txt
+    return response["choices"][0]["text"]
 
 
 def run_openai(content='', func=my_diy):
