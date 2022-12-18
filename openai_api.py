@@ -102,6 +102,7 @@ def run_openai(content='', func=my_diy):
                 txt = input('> ')
                 if txt == 'exit':
                     break
+                content = txt
                 print(func(content))
             except:
                 print("ERROR!")
